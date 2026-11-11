@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tabby – Tip Calculator</title>
+<meta name="description" content="Calculate restaurant tips and split the check. Works offline.">
+<meta name="theme-color" content="#0f3d3e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tabby">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --pine:#0f3d3e; --pine-2:#16595a; --paper:#fafaf7; --ink:#14201f; --muted:#66736f;
+  --gold:#f2b134; --line:#d9ddd5; --chip:#eef0ea;
+  --serif: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  background:var(--pine); color:var(--ink); font-family:var(--sans);
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-tap-highlight-color:transparent;
+}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* Splash */
+#splash{
+  position:fixed;inset:0;z-index:50;background:var(--pine);color:var(--paper);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  transition:opacity .45s ease, visibility .45s;
+}
+#splash.hide{opacity:0;visibility:hidden}
+#splash .check{
+  width:112px;background:var(--paper);padding:16px 14px 22px;border-radius:4px 4px 0 0;
+  clip-path:polygon(0 0,100% 0,100% 100%,87.5% 94%,75% 100%,62.5% 94%,50% 100%,37.5% 94%,25% 100%,12.5% 94%,0 100%);
+  transform-origin:top center;animation:print 1s cubic-bezier(.2,.8,.2,1) both;
+}
+#splash .check i{display:block;height:6px;border-radius:3px;background:var(--pine);margin-bottom:9px}
+#splash .check i:nth-child(1){width:80%}#splash .check i:nth-child(2){width:55%}#splash .check i:nth-child(3){width:68%}
+#splash .check b{display:block;margin-top:14px;font:700 20px var(--serif);color:var(--pine);text-align:right}
+@keyframes print{from{clip-path:polygon(0 0,100% 0,100% 0,0 0);transform:translateY(-8px)}}
+#splash h1{font:600 44px/1 var(--serif);letter-spacing:-.5px;animation:rise .6s .5s both}
+#splash p{color:#b7cfc9;font-size:15px;animation:rise .6s .7s both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+
+/* App */
+main{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:18px 16px 24px;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;color:var(--paper)}
+header h2{font:600 26px var(--serif)}
+#install{display:none;background:var(--gold);color:var(--ink);border:0;border-radius:999px;padding:9px 16px;font:600 14px var(--sans);cursor:pointer}
+#offline{display:none;font-size:12px;color:var(--pine);background:var(--gold);padding:3px 10px;border-radius:999px;font-weight:600}
+
+.result{color:var(--paper);padding:6px 2px 2px}
+.result .lbl{font-size:14px;color:#b7cfc9}
+.result .big{font:600 clamp(48px,16vw,68px)/1.05 var(--serif);letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.result .sub{display:flex;gap:22px;margin-top:10px}
+.result .sub div{font-size:13px;color:#b7cfc9}
+.result .sub strong{display:block;font:600 22px var(--serif);color:var(--paper);font-variant-numeric:tabular-nums}
+
+.sheet{background:var(--paper);border-radius:18px;padding:20px 18px;display:flex;flex-direction:column;gap:20px;flex:1}
+.field>label,.field>.t{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:8px}
+.field .t span{color:var(--muted);font-weight:500}
+.money{display:flex;align-items:center;border-bottom:2px solid var(--ink);gap:6px}
+.money span{font:600 28px var(--serif);color:var(--muted)}
+.money input{flex:1;min-width:0;border:0;background:transparent;font:600 38px var(--serif);padding:4px 0;color:var(--ink);font-variant-numeric:tabular-nums}
+.money input:focus{outline:0}
+.money:focus-within{border-color:var(--pine-2);box-shadow:0 2px 0 var(--gold)}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.chips button{background:var(--chip);border:2px solid transparent;border-radius:12px;padding:12px 0;font:600 17px var(--sans);color:var(--ink);cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--pine);color:var(--paper)}
+input[type=range]{width:100%;accent-color:var(--pine);margin-top:14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stepper{display:flex;align-items:center;gap:14px}
+.stepper button{width:44px;height:44px;border-radius:50%;border:2px solid var(--ink);background:transparent;font:500 24px var(--sans);color:var(--ink);cursor:pointer}
+.stepper output{min-width:28px;text-align:center;font:600 28px var(--serif)}
+.switch{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:600;cursor:pointer;gap:12px}
+.switch small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.switch input{appearance:none;width:52px;height:30px;border-radius:15px;background:var(--line);position:relative;flex:none;cursor:pointer;transition:background .2s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch input:checked{background:var(--pine)}
+.switch input:checked::after{transform:translateX(22px)}
+#reset{align-self:center;background:none;border:0;color:var(--muted);font:500 14px var(--sans);text-decoration:underline;cursor:pointer;padding:8px}
+#ios{display:none;font-size:13px;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="splash" role="status" aria-label="Loading Tabby">
+  <div class="check"><i></i><i></i><i></i><b>+20%</b></div>
+  <h1>Tabby</h1>
+  <p>Tip it. Split it. Done.</p>
+</div>
+
+<main>
+  <header>
+    <h2>Tabby</h2>
+    <span id="offline">Offline</span>
+    <button id="install" type="button">Install app</button>
+  </header>
+
+  <section class="result" aria-live="polite">
+    <div class="lbl">Each person pays</div>
+    <div class="big" id="perPerson">$0.00</div>
+    <div class="sub">
+      <div>Tip<strong id="tipAmt">$0.00</strong></div>
+      <div>Total<strong id="totalAmt">$0.00</strong></div>
+    </div>
+  </section>
+
+  <section class="sheet">
+    <div class="field">
+      <label for="bill">Check amount</label>
+      <div class="money"><span>$</span><input id="bill" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
+    </div>
+
+    <div class="field">
+      <div class="t">Tip <span id="tipLabel">18%</span></div>
+      <div class="chips" id="chips">
+        <button type="button" data-v="15">15%</button>
+        <button type="button" data-v="18">18%</button>
+        <button type="button" data-v="20">20%</button>
+        <button type="button" data-v="25">25%</button>
+      </div>
+      <input type="range" id="tipRange" min="0" max="40" step="1" aria-label="Custom tip percentage">
+    </div>
+
+    <div class="field row">
+      <div class="t" style="margin:0">Split between</div>
+      <div class="stepper">
+        <button type="button" id="minus" aria-label="Fewer people">−</button>
+        <output id="people" aria-live="polite">1</output>
+        <button type="button" id="plus" aria-label="More people">+</button>
+      </div>
+    </div>
+
+    <label class="switch">
+      <span>Round total up<small>Tip adjusts to reach a whole dollar</small></span>
+      <input type="checkbox" id="round">
+    </label>
+
+    <button id="reset" type="button">Clear</button>
+    <p id="ios">To install: tap Share, then “Add to Home Screen”.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' });
+  const KEY = 'tabby-settings';
+  let s = { tip: 18, people: 1, round: false };
+  try { Object.assign(s, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+
+  function calc() {
+    const bill = parseFloat($('bill').value.replace(/,/g, '')) || 0;
+    let tip = bill * s.tip / 100;
+    let total = bill + tip;
+    if (s.round && bill > 0) { total = Math.ceil(total - 1e-9); tip = total - bill; }
+    $('tipAmt').textContent = fmt.format(tip);
+    $('totalAmt').textContent = fmt.format(total);
+    $('perPerson').textContent = fmt.format(total / s.people);
+    $('tipLabel').textContent = (s.round && bill > 0 ? ((tip / bill) * 100).toFixed(1).replace(/\.0$/, '') : s.tip) + '%';
+    $('people').textContent = s.people;
+    $('tipRange').value = s.tip;
+    $('round').checked = s.round;
+    document.querySelectorAll('#chips button').forEach(b =>
+      b.setAttribute('aria-pressed', String(+b.dataset.v === s.tip)));
+    $('minus').disabled = s.people <= 1;
+  }
+
+  $('bill').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/[^0-9.,]/g, '');
+    calc();
+  });
+  $('chips').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    s.tip = +b.dataset.v; save(); calc();
+  });
+  $('tipRange').addEventListener('input', e => { s.tip = +e.target.value; save(); calc(); });
+  $('plus').onclick = () => { s.people = Math.min(50, s.people + 1); save(); calc(); };
+  $('minus').onclick = () => { s.people = Math.max(1, s.people - 1); save(); calc(); };
+  $('round').onchange = e => { s.round = e.target.checked; save(); calc(); };
+  $('reset').onclick = () => { $('bill').value = ''; s.people = 1; save(); calc(); $('bill').focus(); };
+  calc();
+
+  /* Splash: full animation on first load of a session, brief on later loads */
+  const splash = $('splash');
+  let seen = false;
+  try { seen = sessionStorage.getItem('tabby-splash'); sessionStorage.setItem('tabby-splash', '1'); } catch (e) {}
+  setTimeout(() => {
+    splash.classList.add('hide');
+    setTimeout(() => splash.remove(), 600);
+    if (!matchMedia('(pointer:coarse)').matches) $('bill').focus();
+  }, seen ? 350 : 2000);
+
+  /* Offline indicator */
+  const off = () => $('offline').style.display = navigator.onLine ? 'none' : 'inline-block';
+  addEventListener('online', off); addEventListener('offline', off); off();
+
+  /* Install prompt */
+  let deferred;
+  addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e; $('install').style.display = 'inline-block';
+  });
+  $('install').onclick = async () => {
+    if (!deferred) return;
+    deferred.prompt(); await deferred.userChoice;
+    deferred = null; $('install').style.display = 'none';
+  };
+  addEventListener('appinstalled', () => $('install').style.display = 'none');
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) $('ios').style.display = 'block';
+
+  /* Service worker (needs HTTPS or localhost) */
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
